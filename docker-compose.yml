@@ -1,0 +1,45 @@
+services:
+  service-order:
+    container_name: service-order
+    build: ./service-order
+    ports:
+      - "3002:3002"
+    environment:
+      - USER_SERVICE_URL=http://service-user:3001
+    depends_on:
+      service-user:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/orders"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+      
+  service-user:
+    container_name: service-user
+    build: ./service-user
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/users"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+  gateway:
+    container_name: gateway
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      service-user:
+        condition: service_healthy
+      service-order:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
