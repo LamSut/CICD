@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service }}
-          push: false
+          load: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest
       - name: Save Image
         run: docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:latest -o image.tar
