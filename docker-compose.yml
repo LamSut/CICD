@@ -1,11 +1,25 @@
 services:
+  service-user:
+    container_name: ${SERVICE_USER_NAME}
+    image: ${DOCKER_REPO}/${SERVICE_USER_NAME}:${SERVICE_USER_VERSION}
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/users"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   service-order:
-    container_name: service-order
-    build: ./service-order
+    container_name: ${SERVICE_ORDER_NAME}
+    image: ${DOCKER_REPO}/${SERVICE_ORDER_NAME}:${SERVICE_ORDER_VERSION}
     ports:
       - "3002:3002"
-    environment:
-      - USER_SERVICE_URL=http://service-user:3001
+    env_file:
+      - .env
     depends_on:
       service-user:
         condition: service_healthy
@@ -15,23 +29,14 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
-      
-  service-user:
-    container_name: service-user
-    build: ./service-user
-    ports:
-      - "3001:3001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/users"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+
   gateway:
-    container_name: gateway
-    build: ./gateway
+    container_name: ${GATEWAY_NAME}
+    image: ${DOCKER_REPO}/${GATEWAY_NAME}:${GATEWAY_VERSION}
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     depends_on:
       service-user:
         condition: service_healthy
