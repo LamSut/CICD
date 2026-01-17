@@ -1,0 +1,21 @@
+name: SonarQube Cloud Scan
+
+on:
+  workflow_call:
+    secrets:
+      SONAR_TOKEN:
+        required: true
+
+jobs:
+  scan:
+    name: SonarQube Cloud Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

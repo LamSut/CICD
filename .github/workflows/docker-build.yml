@@ -1,0 +1,49 @@
+name: Build Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+
+jobs:
+  build-and-upload:
+    name: Build Docker Image & Upload Artifact
+    runs-on: ubuntu-latest
+    env:
+      SERVICE: ${{ inputs.service }}
+      VERSION: ${{ inputs.version }}
+      USER: ${{ secrets.DOCKERHUB_USERNAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ env.SERVICE }}
+          load: true
+          tags: |
+            ${{ env.USER }}/${{ env.SERVICE }}:${{ env.VERSION }}
+
+      - name: Save Image
+        run: |
+          docker save \
+            $USER/$SERVICE:$VERSION \
+            -o image.tar
+
+      - name: Upload Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SERVICE }}-image
+          path: image.tar

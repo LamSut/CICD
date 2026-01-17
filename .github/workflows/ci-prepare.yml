@@ -1,0 +1,40 @@
+name: Prepare CI Context
+
+on:
+  workflow_call:
+    inputs:
+      services:
+        required: true
+        type: string
+    outputs:
+      services:
+        description: Service matrix
+        value: ${{ jobs.define-matrix.outputs.services }}
+      version:
+        description: Git tag or ref version
+        value: ${{ jobs.extract-version.outputs.version }}
+
+jobs:
+  define-matrix:
+    name: Define Service Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set.outputs.services }}
+    steps:
+      - id: set
+        run: |
+          echo 'services=${{ inputs.services }}' >> $GITHUB_OUTPUT
+
+      - name: Debug services output
+        run: |
+          echo "services output = ${{ steps.set.outputs.services }}"
+
+  extract-version:
+    name: Extract Tag Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        run: |
+          echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
