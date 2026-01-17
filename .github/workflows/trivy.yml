@@ -17,6 +17,10 @@ jobs:
   scan:
     name: Trivy Vulnerability Scan
     runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.service }}:${{ inputs.version }}
+
     steps:
       - name: Download Image Artifact
         uses: actions/download-artifact@v4
@@ -26,12 +30,38 @@ jobs:
       - name: Load Image
         run: docker load -i image.tar
 
-      - name: Trivy Scan
+      - name: Scan Image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.service }}:${{ inputs.version }}
-          exit-code: '1'
+          image-ref: ${{ env.IMAGE_NAME }}
+          format: json
+          output: trivy-report.json
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: os,library
-          severity: CRITICAL
+          severity: LOW,MEDIUM,HIGH,CRITICAL
           scanners: vuln
+
+      - name: Print Trivy Table Summary
+        run: |
+          trivy convert \
+            --format table \
+            trivy-report.json
+
+      - name: Fail if HIGH or CRITICAL vulnerabilities exist
+        run: |
+          if jq -e '
+            .Results[]?.Vulnerabilities[]?
+            | select(.Severity=="HIGH" or .Severity=="CRITICAL")
+          ' trivy-report.json > /dev/null; then
+            echo "HIGH or CRITICAL vulnerabilities found"
+            exit 1
+          else
+            echo "No HIGH or CRITICAL vulnerabilities found"
+          fi
+
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.service }}-trivy-report
+          path: trivy-report.json
