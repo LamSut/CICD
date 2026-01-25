@@ -33,6 +33,7 @@ jobs:
         with:
           context: ./${{ env.SERVICE }}
           load: true
+          no-cache: true
           tags: |
             ${{ env.USER }}/${{ env.SERVICE }}:${{ env.VERSION }}
 
@@ -47,3 +48,4 @@ jobs:
         with:
           name: ${{ env.SERVICE }}-image
           path: image.tar
+          retention-days: 1
