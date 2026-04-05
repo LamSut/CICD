@@ -6,12 +6,22 @@ on:
       services:
         required: true
         type: string
+      event_name:
+        required: true
+        type: string
+      ref_name:
+        required: true
+        type: string
+      pr_title:
+        required: false
+        type: string
+        default: ""
     outputs:
       services:
         description: Service matrix
         value: ${{ jobs.define-matrix.outputs.services }}
       version:
-        description: Git tag or ref version
+        description: Git tag or computed version
         value: ${{ jobs.extract-version.outputs.version }}
 
 jobs:
@@ -23,18 +33,68 @@ jobs:
     steps:
       - id: set
         run: |
-          echo 'services=${{ inputs.services }}' >> $GITHUB_OUTPUT
+          echo 'services=${{ inputs.services }}' >> "$GITHUB_OUTPUT"
 
       - name: Debug services output
         run: |
           echo "services output = ${{ steps.set.outputs.services }}"
 
   extract-version:
-    name: Extract Tag Version
+    name: Extract Version
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --tags
+
       - id: version
+        shell: bash
         run: |
-          echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          EVENT_NAME='${{ inputs.event_name }}'
+          REF_NAME='${{ inputs.ref_name }}'
+          TITLE='${{ inputs.pr_title }}'
+
+          bump_patch () {
+            IFS='.' read -r major minor patch <<< "$1"
+            patch=$((patch + 1))
+            echo "$major.$minor.$patch"
+          }
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            FINAL="$REF_NAME"
+            echo "Push event -> using tag name: $FINAL"
+          else
+            LATEST=$(git tag --sort=-v:refname | head -n 1)
+            if [ -z "$LATEST" ]; then
+              LATEST="0.0.0"
+            fi
+
+            echo "PR title: $TITLE"
+            echo "Latest tag: $LATEST"
+
+            if [[ "$TITLE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              HIGHEST=$(printf "%s\n%s\n" "$LATEST" "$TITLE" | sort -V | tail -n 1)
+
+              if [ "$HIGHEST" = "$TITLE" ] && [ "$TITLE" != "$LATEST" ]; then
+                FINAL="$TITLE"
+                echo "Using PR title version"
+              else
+                FINAL=$(bump_patch "$LATEST")
+                echo "Title <= latest -> bump patch"
+              fi
+            else
+              FINAL=$(bump_patch "$LATEST")
+              echo "Invalid title -> bump patch"
+            fi
+          fi
+
+          echo "Final version: $FINAL"
+          echo "version=$FINAL" >> "$GITHUB_OUTPUT"

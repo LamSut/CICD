@@ -1,12 +1,17 @@
-name: Tag from PR Title
+name: Tag from Version
 
 on:
-  pull_request:
-    types: [closed]
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   tag:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
 
     steps:
@@ -15,76 +20,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract PR title
-        id: pr
-        run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
-
       - name: Fetch all tags
         run: git fetch --tags
 
-      - name: Get latest tag
-        id: latest
-        run: |
-          LATEST=$(git tag --sort=-v:refname | head -n 1)
-
-          if [ -z "$LATEST" ]; then
-            LATEST="0.0.0"
-          fi
-
-          echo "Latest tag: $LATEST"
-          echo "latest=$LATEST" >> $GITHUB_OUTPUT
-
-      - name: Decide final version
-        id: version
-        run: |
-          TITLE="${{ steps.pr.outputs.title }}"
-          LATEST="${{ steps.latest.outputs.latest }}"
-
-          echo "PR title: $TITLE"
-          echo "Latest tag: $LATEST"
-
-          bump_patch () {
-            IFS='.' read -r major minor patch <<< "$1"
-            patch=$((patch + 1))
-            echo "$major.$minor.$patch"
-          }
-
-          if [[ "$TITLE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            # compare versions
-            HIGHEST=$(printf "%s\n%s\n" "$LATEST" "$TITLE" | sort -V | tail -n1)
-
-            if [ "$HIGHEST" == "$TITLE" ] && [ "$TITLE" != "$LATEST" ]; then
-              FINAL="$TITLE"
-              echo "Using PR title version"
-            else
-              FINAL=$(bump_patch "$LATEST")
-              echo "Title <= latest → bump patch"
-            fi
-          else
-            FINAL=$(bump_patch "$LATEST")
-            echo "Invalid title → bump patch"
-          fi
-
-          echo "Final version: $FINAL"
-          echo "version=$FINAL" >> $GITHUB_OUTPUT
-
       - name: Check tag already exists
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          set -euo pipefail
+          VERSION='${{ inputs.version }}'
 
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+          if git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null; then
             echo "Tag $VERSION already exists"
             exit 1
           fi
 
       - name: Create Git Tag
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git tag $VERSION
+          set -euo pipefail
+          VERSION='${{ inputs.version }}'
+          git tag "$VERSION"
 
       - name: Push Tag
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git push origin $VERSION
+          set -euo pipefail
+          VERSION='${{ inputs.version }}'
+          git push origin "refs/tags/$VERSION"
