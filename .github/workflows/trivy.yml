@@ -16,7 +16,7 @@ on:
 jobs:
   scan:
     name: Trivy Vulnerability Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     env:
       IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.service }}:${{ inputs.version }}

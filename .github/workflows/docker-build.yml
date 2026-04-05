@@ -16,7 +16,7 @@ on:
 jobs:
   build-and-upload:
     name: Build Docker Image & Upload Artifact
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       SERVICE: ${{ inputs.service }}
       VERSION: ${{ inputs.version }}

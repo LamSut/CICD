@@ -17,7 +17,7 @@ on:
 jobs:
   define-matrix:
     name: Define Service Matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       services: ${{ steps.set.outputs.services }}
     steps:
@@ -31,7 +31,7 @@ jobs:
 
   extract-version:
     name: Extract Tag Version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:

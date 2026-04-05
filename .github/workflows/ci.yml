@@ -1,6 +1,7 @@
 name: Build, Scan and Push
 
 on:
+  pull_request:
   push:
     tags:
       - "*.*.*"
@@ -14,8 +15,8 @@ jobs:
 
   scan-code-quality:
     name: Scan Code Quality
-    needs:
-      - prepare
+    if: github.event_name == 'pull_request'
+    needs: prepare
     uses: ./.github/workflows/sonarcloud.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -25,6 +26,7 @@ jobs:
     needs:
       - prepare
       - scan-code-quality
+    if: always() && needs.prepare.result == 'success'
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
@@ -37,6 +39,7 @@ jobs:
 
   scan-image-vulnerabilities:
     name: Scan Image Vulnerabilities
+    if: github.event_name == 'pull_request'
     needs:
       - prepare
       - build-docker-images
@@ -52,9 +55,10 @@ jobs:
 
   push-docker-images:
     name: Push Docker Images
+    if: github.event_name == 'push'
     needs:
       - prepare
-      - scan-image-vulnerabilities
+      - build-docker-images
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
@@ -65,3 +69,12 @@ jobs:
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  tag-version:
+    name: Tag Version
+    if: github.event_name == 'push'
+    needs:
+      - prepare
+      - build-docker-images
+      - push-docker-images
+    uses: ./.github/workflows/tag-version.yml
