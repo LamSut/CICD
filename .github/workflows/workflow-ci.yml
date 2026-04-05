@@ -21,7 +21,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare Services with Version
-    uses: ./.github/workflows/ci-prepare.yml
+    uses: ./.github/workflows/version-prepare.yml
     with:
       services: ${{ vars.SERVICES }}
       event_name: ${{ github.event_name }}
@@ -37,9 +37,9 @@ jobs:
 
   build-docker-images:
     name: Build Docker Image
+    if: github.event_name == 'pull_request' && needs.prepare.result == 'success'
     needs:
       - prepare
-    if: (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
@@ -52,7 +52,7 @@ jobs:
 
   scan-image-vulnerabilities:
     name: Scan Image Vulnerabilities
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.prepare.result == 'success' && needs.build-docker-images.result == 'success'
     needs:
       - prepare
       - build-docker-images
@@ -68,10 +68,11 @@ jobs:
 
   push-docker-images:
     name: Push Docker Images
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.prepare.result == 'success' && needs.build-docker-images.result == 'success'
+    if: github.event_name == 'pull_request' && needs.prepare.result == 'success' && needs.build-docker-images.result == 'success' && needs.scan-image-vulnerabilities.result == 'success'
     needs:
       - prepare
       - build-docker-images
+      - scan-image-vulnerabilities
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
@@ -88,7 +89,6 @@ jobs:
     if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.prepare.result == 'success'
     needs:
       - prepare
-      - push-docker-images
-    uses: ./.github/workflows/tag-version.yml
+    uses: ./.github/workflows/version-tag.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
