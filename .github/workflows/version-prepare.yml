@@ -80,15 +80,17 @@ jobs:
             echo "PR title: $TITLE"
             echo "Latest tag: $LATEST"
 
-            if [[ "$TITLE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              HIGHEST=$(printf "%s\n%s\n" "$LATEST" "$TITLE" | sort -V | tail -n 1)
+            if [[ "$TITLE" =~ ^([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+              VERSION_FROM_TITLE="${BASH_REMATCH[1]}"
 
-              if [ "$HIGHEST" = "$TITLE" ] && [ "$TITLE" != "$LATEST" ]; then
-                FINAL="$TITLE"
-                echo "Using PR title version"
+              HIGHEST=$(printf "%s\n%s\n" "$LATEST" "$VERSION_FROM_TITLE" | sort -V | tail -n 1)
+
+              if [ "$HIGHEST" = "$VERSION_FROM_TITLE" ] && [ "$VERSION_FROM_TITLE" != "$LATEST" ]; then
+                FINAL="$VERSION_FROM_TITLE"
+                echo "Using version from PR title"
               else
                 FINAL=$(bump_patch "$LATEST")
-                echo "Title <= latest -> bump patch"
+                echo "Title version <= latest -> bump patch" 
               fi
             else
               FINAL=$(bump_patch "$LATEST")
