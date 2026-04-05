@@ -58,6 +58,17 @@ jobs:
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
+  tag-version:
+    name: Tag Version
+    if: github.event_name == 'pull_request' && needs.prepare.result == 'success' && needs.build-docker-images.result == 'success' && needs.scan-image-vulnerabilities.result == 'success'
+    needs:
+      - prepare
+      - build-docker-images
+      - scan-image-vulnerabilities
+    uses: ./.github/workflows/tag-version.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }} 
+
   push-docker-images:
     name: Push Docker Images
     if: github.event_name == 'push'
@@ -74,14 +85,3 @@ jobs:
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  tag-version:
-    name: Tag Version
-    if: github.event_name == 'push'
-    needs:
-      - prepare
-      - build-docker-images
-      - push-docker-images
-    uses: ./.github/workflows/tag-version.yml
-    with:
-      version: ${{ needs.prepare.outputs.version }} 
