@@ -2,9 +2,18 @@ name: Build, Scan, Push and Tag
 
 on:
   pull_request:
-  push:
-    tags:
-      - "*.*.*"
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
 
 permissions:
   contents: write
@@ -14,7 +23,7 @@ jobs:
     name: Prepare Services with Version
     uses: ./.github/workflows/ci-prepare.yml
     with:
-      services: ${{ vars.SERVICES }} 
+      services: ${{ vars.SERVICES }}
       event_name: ${{ github.event_name }}
       ref_name: ${{ github.ref_name }}
       pr_title: ${{ github.event.pull_request.title || '' }}
@@ -58,23 +67,11 @@ jobs:
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
-  tag-version:
-    name: Tag Version
-    if: github.event_name == 'pull_request' && needs.prepare.result == 'success' && needs.build-docker-images.result == 'success' && needs.scan-image-vulnerabilities.result == 'success'
-    needs:
-      - prepare
-      - build-docker-images
-      - scan-image-vulnerabilities
-    uses: ./.github/workflows/tag-version.yml
-    with:
-      version: ${{ needs.prepare.outputs.version }} 
-
   push-docker-images:
     name: Push Docker Images
-    if: github.event_name == 'push'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.prepare.result == 'success'
     needs:
       - prepare
-      - build-docker-images
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
@@ -85,3 +82,13 @@ jobs:
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  tag-version:
+    name: Tag Version
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.prepare.result == 'success'
+    needs:
+      - prepare
+      - push-docker-images
+    uses: ./.github/workflows/tag-version.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
