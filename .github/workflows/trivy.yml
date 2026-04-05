@@ -42,11 +42,27 @@ jobs:
           severity: LOW,MEDIUM,HIGH,CRITICAL
           scanners: vuln
 
+      - name: Debug Trivy Report
+        run: |
+          echo "=== FILE SIZE ==="
+          ls -lh trivy-report.json || true
+
+          echo "=== RESULTS LENGTH ==="
+          cat trivy-report.json | jq '.Results | length'
+
+          echo "=== VULN COUNT ==="
+          cat trivy-report.json | jq '[.Results[]?.Vulnerabilities[]?] | length'
+
       - name: Print Trivy Table Summary
         run: |
-          trivy convert \
-            --format table \
-            trivy-report.json
+          VULN_COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-report.json)
+
+          if [ "$VULN_COUNT" -eq 0 ]; then
+            echo "No vulnerabilities found"
+          else
+            echo "Vulnerabilities found: $VULN_COUNT"
+            trivy convert --format table trivy-report.json
+          fi
 
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v4
