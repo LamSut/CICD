@@ -71,9 +71,10 @@ jobs:
 
   push-docker-images:
     name: Push Docker Images
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.prepare.result == 'success'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && needs.prepare.result == 'success' && needs.build-docker-images.result == 'success'
     needs:
       - prepare
+      - build-docker-images
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
