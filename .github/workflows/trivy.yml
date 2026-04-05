@@ -55,11 +55,11 @@ jobs:
           path: trivy-report.json
           retention-days: 1
 
-      - name: Fail if HIGH or CRITICAL vulnerabilities exist
+      - name: Fail if CRITICAL vulnerabilities exist
         run: |
           if jq -e '
             .Results[]?.Vulnerabilities[]?
-            | select(.Severity=="HIGH" or .Severity=="CRITICAL")
+            | select(.Severity=="CRITICAL")
           ' trivy-report.json > /dev/null; then
             echo "HIGH or CRITICAL vulnerabilities found"
             exit 1

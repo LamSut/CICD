@@ -1,4 +1,4 @@
-name: Build, Scan and Push
+name: Build, Scan, Push and Tag
 
 on:
   pull_request:
@@ -6,17 +6,22 @@ on:
     tags:
       - "*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
   prepare:
     name: Prepare Services with Version
     uses: ./.github/workflows/ci-prepare.yml
     with:
-      services: ${{ vars.SERVICES }}
+      services: ${{ vars.SERVICES }} 
+      event_name: ${{ github.event_name }}
+      ref_name: ${{ github.ref_name }}
+      pr_title: ${{ github.event.pull_request.title || '' }}
 
   scan-code-quality:
     name: Scan Code Quality
     if: github.event_name == 'pull_request'
-    needs: prepare
     uses: ./.github/workflows/sonarcloud.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -26,7 +31,7 @@ jobs:
     needs:
       - prepare
       - scan-code-quality
-    if: always() && needs.prepare.result == 'success'
+    if: github.event_name == 'pull_request' && needs.prepare.result == 'success' && needs.scan-code-quality.result == 'success'
     strategy:
       matrix:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
@@ -78,3 +83,5 @@ jobs:
       - build-docker-images
       - push-docker-images
     uses: ./.github/workflows/tag-version.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }} 
