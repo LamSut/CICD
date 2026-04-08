@@ -9,6 +9,10 @@ on:
       version:
         required: true
         type: string
+      build_args:
+        required: false
+        type: string
+        default: ""
     secrets:
       DOCKERHUB_USERNAME:
         required: true
@@ -34,6 +38,8 @@ jobs:
           context: ./${{ env.SERVICE }}
           load: true
           no-cache: true
+          build-args: |
+            ${{ inputs.build_args }}
           tags: |
             ${{ env.USER }}/${{ env.SERVICE }}:${{ env.VERSION }}
 
